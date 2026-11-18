@@ -94,9 +94,9 @@ Proposed automated capture, raw-file preservation, scientific metadata matching,
 
 | Deliverable | What it demonstrates | Open document |
 |---|---|---|
-| **User stories and acceptance criteria** | Translates scientific workflow needs into testable system behavior | [View user stories](supporting/User_Stories.docx) |
-| **Proposed UAT scenarios** | Defines how data integrity, exception handling and scientist review would be verified | [View UAT matrix](supporting/UAT_Matrix.docx) |
-| **Requirements traceability matrix (RTM)** | Connects gaps, business requirements, delivery phases and proposed tests | [View RTM](supporting/RTM.docx) |
+| **User stories and acceptance criteria** | Translates scientific workflow needs into testable system behavior | [View user stories](supporting/User_Stories.pdf) |
+| **Proposed UAT scenarios** | Defines how data integrity, exception handling and scientist review would be verified | [View UAT matrix](supporting/UAT_Matrix.pdf) |
+| **Requirements traceability matrix (RTM)** | Connects gaps, business requirements, delivery phases and proposed tests | [View RTM](supporting/RTM.pdf) |
 
 *These are proposed acceptance and verification artifacts; UAT has not been executed.*
 
