@@ -76,7 +76,7 @@ Proposed automated capture, raw-file preservation, scientific metadata matching,
 
 [![Gap analysis and requirements excerpt](assets/gap_requirements.png)](assets/gap_requirements.png)
 
-[**Full gap analysis and BR matrix**](supporting/Gap_Analysis_and_Business_Requirements.docx) · [User stories](supporting/User_Stories.docx) · [Proposed UAT](supporting/UAT_Matrix.docx) · [Traceability matrix](supporting/RTM.docx)
+[**Full gap analysis and BR matrix**](supporting/Gap_Analysis_and_Business_Requirements.docx)
 
 ### 4. Delivery priorities
 
@@ -89,6 +89,16 @@ Proposed automated capture, raw-file preservation, scientific metadata matching,
 [![Kano/MoSCoW prioritization excerpt](assets/prioritization.png)](assets/prioritization.png)
 
 [**Full prioritization assessment**](supporting/Prioritization_Matrix.docx)
+
+### Requirements validation and traceability
+
+| Deliverable | What it demonstrates | Open document |
+|---|---|---|
+| **User stories and acceptance criteria** | Translates scientific workflow needs into testable system behavior | [View user stories](supporting/User_Stories.docx) |
+| **Proposed UAT scenarios** | Defines how data integrity, exception handling and scientist review would be verified | [View UAT matrix](supporting/UAT_Matrix.docx) |
+| **Requirements traceability matrix (RTM)** | Connects gaps, business requirements, delivery phases and proposed tests | [View RTM](supporting/RTM.docx) |
+
+*These are proposed acceptance and verification artifacts; UAT has not been executed.*
 
 ## The data automation design choice
 
@@ -130,7 +140,7 @@ The decision should follow a scoped proof of concept comparing available tools a
 
 **Proposed measures:** verified clone–batch–lot linkage rate for applicable samples; metadata exception rate and resolution; traceability to original files and review decisions; duplicate/retry performance; time to review-ready results; and scientist ability to retrieve valid cross-run comparisons.
 
-The [user stories](supporting/User_Stories.docx), [UAT scenarios](supporting/UAT_Matrix.docx) and [RTM](supporting/RTM.docx) connect requirements to verification. Any numerical targets are **illustrative until measured in a pilot**.
+The requirements validation and traceability documents above connect proposed requirements to verification. Any numerical targets are **illustrative until measured in a pilot**.
 
 ## Portfolio scope
 
