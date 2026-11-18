@@ -1,0 +1,201 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                  id="Definitions_AsIs_v2"
+                  targetNamespace="http://bioflow-lmd.example.com/bpmn/as-is-v2">
+  <bpmn:collaboration id="Collaboration_AsIs_v2">
+    <bpmn:participant id="Participant_AsIs_v2" name="BioFlow-LMD Current State (As-Is): Fragmented Metadata, Manual QC &amp; Unsearchable ELN Attachments" processRef="Process_AsIs_v2" />
+  </bpmn:collaboration>
+  <bpmn:process id="Process_AsIs_v2" isExecutable="false">
+    <bpmn:laneSet id="LaneSet_AsIs_v2">
+      <bpmn:lane id="Lane_AsIs_Instrument" name="Lab Instrument (Octet BLI / ELISA)">
+        <bpmn:flowNodeRef>Task_AsIs_RunAssay</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_AsIs_ExportRaw</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_AsIs_Scientist" name="Assay Scientist">
+        <bpmn:flowNodeRef>StartEvent_AsIs</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_AsIs_RetrieveMeta</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_AsIs_TransferFile</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_AsIs_ReformatExcel</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_AsIs_CalcMetrics</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gateway_AsIs_QC</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_AsIs_UploadELN</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_AsIs_ELN" name="Data Platform / ELN (Unstructured Storage)">
+        <bpmn:flowNodeRef>DataStore_AsIs_ELN</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_AsIs_Review" name="Scientific Review (Protein Engineering)">
+        <bpmn:flowNodeRef>Task_AsIs_Aggregate</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>EndEvent_AsIs</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+
+    <bpmn:startEvent id="StartEvent_AsIs" name="Start: Plate Design &amp; Setup">
+      <bpmn:outgoing>Flow_AsIs_1</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <bpmn:userTask id="Task_AsIs_RetrieveMeta" name="A. Manually Gather Molecule, Clone, Batch &amp; Plate Map in Local Excel">
+      <bpmn:incoming>Flow_AsIs_1</bpmn:incoming>
+      <bpmn:outgoing>Flow_AsIs_2</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:task id="Task_AsIs_RunAssay" name="Execute Assay Run (Octet BLI Kinetics or ELISA Titer)">
+      <bpmn:incoming>Flow_AsIs_2</bpmn:incoming>
+      <bpmn:outgoing>Flow_AsIs_3</bpmn:outgoing>
+    </bpmn:task>
+
+    <bpmn:task id="Task_AsIs_ExportRaw" name="Export Raw CSV/XML to Local PC">
+      <bpmn:incoming>Flow_AsIs_3</bpmn:incoming>
+      <bpmn:outgoing>Flow_AsIs_4</bpmn:outgoing>
+    </bpmn:task>
+
+    <bpmn:userTask id="Task_AsIs_TransferFile" name="Transfer Raw File via USB / Shared Drive">
+      <bpmn:incoming>Flow_AsIs_4</bpmn:incoming>
+      <bpmn:outgoing>Flow_AsIs_5</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:userTask id="Task_AsIs_ReformatExcel" name="Reformat 96-Well Grid &amp; Manually Join Sample IDs">
+      <bpmn:incoming>Flow_AsIs_5</bpmn:incoming>
+      <bpmn:incoming>Flow_AsIs_Rework</bpmn:incoming>
+      <bpmn:outgoing>Flow_AsIs_6</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:userTask id="Task_AsIs_CalcMetrics" name="B. Manually Fit Assay Metrics (BLI KD vs. ELISA EC50 &amp; Control CV%)">
+      <bpmn:incoming>Flow_AsIs_6</bpmn:incoming>
+      <bpmn:outgoing>Flow_AsIs_7</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:exclusiveGateway id="Gateway_AsIs_QC" name="Manual QC &amp; Mapping Verified?">
+      <bpmn:incoming>Flow_AsIs_7</bpmn:incoming>
+      <bpmn:outgoing>Flow_AsIs_Rework</bpmn:outgoing>
+      <bpmn:outgoing>Flow_AsIs_Pass</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <bpmn:userTask id="Task_AsIs_UploadELN" name="Type Summary &amp; Upload Flat File to ELN (~45 min/plate)">
+      <bpmn:incoming>Flow_AsIs_Pass</bpmn:incoming>
+      <bpmn:outgoing>Flow_AsIs_8</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:dataStoreReference id="DataStore_AsIs_ELN" name="ELN Unsearchable Flat CSV Attachment (No Lineage Link)" />
+
+    <bpmn:userTask id="Task_AsIs_Aggregate" name="Download Attachments &amp; Manually Aggregate Multi-Plate Hits">
+      <bpmn:incoming>Flow_AsIs_8</bpmn:incoming>
+      <bpmn:outgoing>Flow_AsIs_9</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:endEvent id="EndEvent_AsIs" name="End: Hit-Selection Decision (~3 Days Baseline Cycle Time)">
+      <bpmn:incoming>Flow_AsIs_9</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:sequenceFlow id="Flow_AsIs_1" sourceRef="StartEvent_AsIs" targetRef="Task_AsIs_RetrieveMeta" />
+    <bpmn:sequenceFlow id="Flow_AsIs_2" sourceRef="Task_AsIs_RetrieveMeta" targetRef="Task_AsIs_RunAssay" />
+    <bpmn:sequenceFlow id="Flow_AsIs_3" sourceRef="Task_AsIs_RunAssay" targetRef="Task_AsIs_ExportRaw" />
+    <bpmn:sequenceFlow id="Flow_AsIs_4" sourceRef="Task_AsIs_ExportRaw" targetRef="Task_AsIs_TransferFile" />
+    <bpmn:sequenceFlow id="Flow_AsIs_5" sourceRef="Task_AsIs_TransferFile" targetRef="Task_AsIs_ReformatExcel" />
+    <bpmn:sequenceFlow id="Flow_AsIs_6" sourceRef="Task_AsIs_ReformatExcel" targetRef="Task_AsIs_CalcMetrics" />
+    <bpmn:sequenceFlow id="Flow_AsIs_7" sourceRef="Task_AsIs_CalcMetrics" targetRef="Gateway_AsIs_QC" />
+    <bpmn:sequenceFlow id="Flow_AsIs_Rework" name="No (~4% Error / Rework)" sourceRef="Gateway_AsIs_QC" targetRef="Task_AsIs_ReformatExcel" />
+    <bpmn:sequenceFlow id="Flow_AsIs_Pass" name="Yes" sourceRef="Gateway_AsIs_QC" targetRef="Task_AsIs_UploadELN" />
+    <bpmn:sequenceFlow id="Flow_AsIs_8" sourceRef="Task_AsIs_UploadELN" targetRef="Task_AsIs_Aggregate" />
+    <bpmn:sequenceFlow id="Flow_AsIs_9" sourceRef="Task_AsIs_Aggregate" targetRef="EndEvent_AsIs" />
+  </bpmn:process>
+
+  <bpmndi:BPMNDiagram id="BPMNDiagram_AsIs_v2">
+    <bpmndi:BPMNPlane id="BPMNPlane_AsIs_v2" bpmnElement="Collaboration_AsIs_v2">
+      <bpmndi:BPMNShape id="Shape_Participant_AsIs_v2" bpmnElement="Participant_AsIs_v2" isHorizontal="true">
+        <dc:Bounds x="140" y="60" width="1680" height="720" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Lane_AsIs_Instrument" bpmnElement="Lane_AsIs_Instrument" isHorizontal="true">
+        <dc:Bounds x="170" y="60" width="1650" height="160" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Lane_AsIs_Scientist" bpmnElement="Lane_AsIs_Scientist" isHorizontal="true">
+        <dc:Bounds x="170" y="220" width="1650" height="240" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Lane_AsIs_ELN" bpmnElement="Lane_AsIs_ELN" isHorizontal="true">
+        <dc:Bounds x="170" y="460" width="1650" height="150" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Lane_AsIs_Review" bpmnElement="Lane_AsIs_Review" isHorizontal="true">
+        <dc:Bounds x="170" y="610" width="1650" height="170" />
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Shape_StartEvent_AsIs" bpmnElement="StartEvent_AsIs">
+        <dc:Bounds x="212" y="312" width="36" height="36" />
+        <bpmndi:BPMNLabel><dc:Bounds x="190" y="355" width="80" height="27" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_AsIs_RetrieveMeta" bpmnElement="Task_AsIs_RetrieveMeta">
+        <dc:Bounds x="290" y="290" width="140" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_AsIs_RunAssay" bpmnElement="Task_AsIs_RunAssay">
+        <dc:Bounds x="450" y="100" width="130" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_AsIs_ExportRaw" bpmnElement="Task_AsIs_ExportRaw">
+        <dc:Bounds x="610" y="100" width="120" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_AsIs_TransferFile" bpmnElement="Task_AsIs_TransferFile">
+        <dc:Bounds x="610" y="290" width="120" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_AsIs_ReformatExcel" bpmnElement="Task_AsIs_ReformatExcel">
+        <dc:Bounds x="770" y="290" width="130" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_AsIs_CalcMetrics" bpmnElement="Task_AsIs_CalcMetrics">
+        <dc:Bounds x="940" y="290" width="140" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Gateway_AsIs_QC" bpmnElement="Gateway_AsIs_QC" isMarkerVisible="true">
+        <dc:Bounds x="1125" y="305" width="50" height="50" />
+        <bpmndi:BPMNLabel><dc:Bounds x="1108" y="362" width="84" height="27" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_AsIs_UploadELN" bpmnElement="Task_AsIs_UploadELN">
+        <dc:Bounds x="1250" y="290" width="135" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_DataStore_AsIs_ELN" bpmnElement="DataStore_AsIs_ELN">
+        <dc:Bounds x="1292" y="500" width="50" height="50" />
+        <bpmndi:BPMNLabel><dc:Bounds x="1265" y="555" width="105" height="40" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_AsIs_Aggregate" bpmnElement="Task_AsIs_Aggregate">
+        <dc:Bounds x="1450" y="655" width="140" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_EndEvent_AsIs" bpmnElement="EndEvent_AsIs">
+        <dc:Bounds x="1662" y="677" width="36" height="36" />
+        <bpmndi:BPMNLabel><dc:Bounds x="1635" y="720" width="90" height="40" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_AsIs_1" bpmnElement="Flow_AsIs_1">
+        <di:waypoint x="248" y="330" /><di:waypoint x="290" y="330" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_AsIs_2" bpmnElement="Flow_AsIs_2">
+        <di:waypoint x="360" y="290" /><di:waypoint x="360" y="140" /><di:waypoint x="450" y="140" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_AsIs_3" bpmnElement="Flow_AsIs_3">
+        <di:waypoint x="580" y="140" /><di:waypoint x="610" y="140" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_AsIs_4" bpmnElement="Flow_AsIs_4">
+        <di:waypoint x="670" y="180" /><di:waypoint x="670" y="290" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_AsIs_5" bpmnElement="Flow_AsIs_5">
+        <di:waypoint x="730" y="330" /><di:waypoint x="770" y="330" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_AsIs_6" bpmnElement="Flow_AsIs_6">
+        <di:waypoint x="900" y="330" /><di:waypoint x="940" y="330" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_AsIs_7" bpmnElement="Flow_AsIs_7">
+        <di:waypoint x="1080" y="330" /><di:waypoint x="1125" y="330" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_AsIs_Rework" bpmnElement="Flow_AsIs_Rework">
+        <di:waypoint x="1150" y="305" /><di:waypoint x="1150" y="245" /><di:waypoint x="835" y="245" /><di:waypoint x="835" y="290" />
+        <bpmndi:BPMNLabel><dc:Bounds x="935" y="227" width="115" height="14" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_AsIs_Pass" bpmnElement="Flow_AsIs_Pass">
+        <di:waypoint x="1175" y="330" /><di:waypoint x="1250" y="330" />
+        <bpmndi:BPMNLabel><dc:Bounds x="1203" y="312" width="19" height="14" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_AsIs_8" bpmnElement="Flow_AsIs_8">
+        <di:waypoint x="1385" y="330" /><di:waypoint x="1415" y="330" /><di:waypoint x="1415" y="695" /><di:waypoint x="1450" y="695" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_AsIs_9" bpmnElement="Flow_AsIs_9">
+        <di:waypoint x="1590" y="695" /><di:waypoint x="1662" y="695" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

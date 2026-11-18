@@ -1,0 +1,375 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                  id="Definitions_ToBe_v2"
+                  targetNamespace="http://bioflow-lmd.example.com/bpmn/to-be-v2">
+  <bpmn:collaboration id="Collaboration_ToBe_v2">
+    <bpmn:participant id="Participant_ToBe_v2" name="BioFlow-LMD Future State (To-Be): End-to-End Traceability, Assay-Specific QC &amp; Operational Safeguards" processRef="Process_ToBe_v2" />
+  </bpmn:collaboration>
+  <bpmn:process id="Process_ToBe_v2" isExecutable="false">
+    <bpmn:laneSet id="LaneSet_ToBe_v2">
+      <bpmn:lane id="Lane_ToBe_Instrument" name="1. Instrument &amp; Edge Agent">
+        <bpmn:flowNodeRef>StartEvent_ToBe</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_ToBe_RetrieveUpstream</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_ToBe_RunAssay</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Event_ToBe_FileDrop</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_ToBe_EdgeUpload</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_ToBe_Pipeline" name="2. Automated Ingestion, Safeguards &amp; Assay QC Pipeline (AWS Lambda / Python)">
+        <bpmn:flowNodeRef>Event_ToBe_S3Trigger</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_ToBe_Safeguards</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gateway_ToBe_SafeguardCheck</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_ToBe_Quarantine</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>EndEvent_ToBe_Quarantined</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gateway_ToBe_AssayType</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_ToBe_QC_ELISA</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_ToBe_QC_BLI</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gateway_ToBe_QCMerge</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gateway_ToBe_QCGate</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_ToBe_PersistFailed</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_ToBe_PersistPassed</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_ToBe_ELNSync</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_ToBe_Platform" name="3. Data Platform / ELN (System of Record)">
+        <bpmn:flowNodeRef>DataStore_ToBe_Hub</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>DataStore_ToBe_ELN</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_ToBe_Scientists" name="4. Scientific Review &amp; Lab Operations (Human-in-the-Loop)">
+        <bpmn:flowNodeRef>Task_ToBe_InvestigateFail</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>EndEvent_ToBe_FailResolved</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_ToBe_HitSelection</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>EndEvent_ToBe_Success</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+
+    <!-- Lane 1: Upstream & Instrument -->
+    <bpmn:startEvent id="StartEvent_ToBe" name="Start: Assay Request Initiated">
+      <bpmn:outgoing>Flow_1</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <bpmn:serviceTask id="Task_ToBe_RetrieveUpstream" name="A. Retrieve Molecule, Clone, Batch &amp; Assay Setup Metadata Linked to Plate Map">
+      <bpmn:incoming>Flow_1</bpmn:incoming>
+      <bpmn:outgoing>Flow_2</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:task id="Task_ToBe_RunAssay" name="Execute Assay Run with Registered Plate Barcode">
+      <bpmn:incoming>Flow_2</bpmn:incoming>
+      <bpmn:outgoing>Flow_3</bpmn:outgoing>
+    </bpmn:task>
+
+    <bpmn:intermediateCatchEvent id="Event_ToBe_FileDrop" name="Raw Instrument File Exported">
+      <bpmn:incoming>Flow_3</bpmn:incoming>
+      <bpmn:outgoing>Flow_4</bpmn:outgoing>
+      <bpmn:signalEventDefinition id="SignalDef_FileDrop" />
+    </bpmn:intermediateCatchEvent>
+
+    <bpmn:serviceTask id="Task_ToBe_EdgeUpload" name="E. Edge Agent Upload with Local Spooling, Network Retry &amp; SHA-256 Checksum">
+      <bpmn:incoming>Flow_4</bpmn:incoming>
+      <bpmn:outgoing>Flow_5</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Lane 2: Safeguards & Assay-Specific QC -->
+    <bpmn:intermediateCatchEvent id="Event_ToBe_S3Trigger" name="S3 Raw ObjectCreated">
+      <bpmn:incoming>Flow_5</bpmn:incoming>
+      <bpmn:outgoing>Flow_6</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="MsgDef_S3" />
+    </bpmn:intermediateCatchEvent>
+
+    <bpmn:serviceTask id="Task_ToBe_Safeguards" name="E. Pre-Flight Safeguards: Deduplication Hash, Plate-Map Integrity &amp; Metadata Completeness">
+      <bpmn:incoming>Flow_6</bpmn:incoming>
+      <bpmn:outgoing>Flow_7</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:exclusiveGateway id="Gateway_ToBe_SafeguardCheck" name="Integrity &amp; Schema Valid?">
+      <bpmn:incoming>Flow_7</bpmn:incoming>
+      <bpmn:outgoing>Flow_SafeguardFail</bpmn:outgoing>
+      <bpmn:outgoing>Flow_SafeguardPass</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <bpmn:serviceTask id="Task_ToBe_Quarantine" name="Quarantine File, Log Error &amp; Alert Owner (Prevent Error Propagation)">
+      <bpmn:incoming>Flow_SafeguardFail</bpmn:incoming>
+      <bpmn:outgoing>Flow_QuarantineEnd</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:endEvent id="EndEvent_ToBe_Quarantined" name="End: Quarantined for Remediation">
+      <bpmn:incoming>Flow_QuarantineEnd</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:exclusiveGateway id="Gateway_ToBe_AssayType" name="B. Route by Assay Type &amp; Approved Method">
+      <bpmn:incoming>Flow_SafeguardPass</bpmn:incoming>
+      <bpmn:outgoing>Flow_RouteELISA</bpmn:outgoing>
+      <bpmn:outgoing>Flow_RouteBLI</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <bpmn:serviceTask id="Task_ToBe_QC_ELISA" name="B. ELISA Method: 4PL EC50 Fit, Control CV% &lt; 15% &amp; Z'-Factor &gt; 0.5">
+      <bpmn:incoming>Flow_RouteELISA</bpmn:incoming>
+      <bpmn:outgoing>Flow_MergeELISA</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:serviceTask id="Task_ToBe_QC_BLI" name="B. Octet BLI Method: 1:1 Langmuir KD/kon/koff, R2 &gt; 0.95 &amp; Baseline Drift Check">
+      <bpmn:incoming>Flow_RouteBLI</bpmn:incoming>
+      <bpmn:outgoing>Flow_MergeBLI</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:exclusiveGateway id="Gateway_ToBe_QCMerge">
+      <bpmn:incoming>Flow_MergeELISA</bpmn:incoming>
+      <bpmn:incoming>Flow_MergeBLI</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToQCGate</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <bpmn:exclusiveGateway id="Gateway_ToBe_QCGate" name="Assay QC Rules Passed?">
+      <bpmn:incoming>Flow_ToQCGate</bpmn:incoming>
+      <bpmn:outgoing>Flow_QCFail</bpmn:outgoing>
+      <bpmn:outgoing>Flow_QCPass</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <bpmn:serviceTask id="Task_ToBe_PersistFailed" name="C. Retain Full Run (Status: QC_FAILED / EXCLUDED_FROM_HIT_SELECTION) &amp; Version">
+      <bpmn:incoming>Flow_QCFail</bpmn:incoming>
+      <bpmn:outgoing>Flow_FailToReview</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:serviceTask id="Task_ToBe_PersistPassed" name="E. Write Immutable Versioned FAIR JSON/Parquet to Data Hub (Status: QC_PASSED)">
+      <bpmn:incoming>Flow_QCPass</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToELNSync</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:serviceTask id="Task_ToBe_ELNSync" name="E. Idempotent ELN REST API Sync with Dead-Letter Queue (DLQ) Retry">
+      <bpmn:incoming>Flow_ToELNSync</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToHitSelection</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Lane 3: Data Platform / ELN -->
+    <bpmn:dataStoreReference id="DataStore_ToBe_Hub" name="AWS Curated LMD Data Hub (Versioned Parquet/SQL - All Runs Retained)" />
+    <bpmn:dataStoreReference id="DataStore_ToBe_ELN" name="ELN / LIMS Structured Experiment Record (Passed &amp; Failed Lineage)" />
+
+    <!-- Lane 4: Scientific Review & Lab Ops -->
+    <bpmn:userTask id="Task_ToBe_InvestigateFail" name="C. Lab Ops &amp; Scientist Root-Cause Investigation (Rerun vs. Override)">
+      <bpmn:incoming>Flow_FailToReview</bpmn:incoming>
+      <bpmn:outgoing>Flow_FailEnd</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:endEvent id="EndEvent_ToBe_FailResolved" name="End: Failed Run Investigated &amp; Preserved">
+      <bpmn:incoming>Flow_FailEnd</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:userTask id="Task_ToBe_HitSelection" name="D. Scientist Multi-Plate Analytical Review &amp; Hit Selection (Data Ready &lt;2m; Target Hit Selection ~15m)">
+      <bpmn:incoming>Flow_ToHitSelection</bpmn:incoming>
+      <bpmn:outgoing>Flow_SuccessEnd</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:endEvent id="EndEvent_ToBe_Success" name="End: Hit Selection Complete (Target: ~15 Min vs. 3-Day Baseline)">
+      <bpmn:incoming>Flow_SuccessEnd</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <!-- Sequence Flows -->
+    <bpmn:sequenceFlow id="Flow_1" sourceRef="StartEvent_ToBe" targetRef="Task_ToBe_RetrieveUpstream" />
+    <bpmn:sequenceFlow id="Flow_2" sourceRef="Task_ToBe_RetrieveUpstream" targetRef="Task_ToBe_RunAssay" />
+    <bpmn:sequenceFlow id="Flow_3" sourceRef="Task_ToBe_RunAssay" targetRef="Event_ToBe_FileDrop" />
+    <bpmn:sequenceFlow id="Flow_4" sourceRef="Event_ToBe_FileDrop" targetRef="Task_ToBe_EdgeUpload" />
+    <bpmn:sequenceFlow id="Flow_5" sourceRef="Task_ToBe_EdgeUpload" targetRef="Event_ToBe_S3Trigger" />
+    <bpmn:sequenceFlow id="Flow_6" sourceRef="Event_ToBe_S3Trigger" targetRef="Task_ToBe_Safeguards" />
+    <bpmn:sequenceFlow id="Flow_7" sourceRef="Task_ToBe_Safeguards" targetRef="Gateway_ToBe_SafeguardCheck" />
+    <bpmn:sequenceFlow id="Flow_SafeguardFail" name="No (Duplicate / Bad Map)" sourceRef="Gateway_ToBe_SafeguardCheck" targetRef="Task_ToBe_Quarantine" />
+    <bpmn:sequenceFlow id="Flow_QuarantineEnd" sourceRef="Task_ToBe_Quarantine" targetRef="EndEvent_ToBe_Quarantined" />
+    <bpmn:sequenceFlow id="Flow_SafeguardPass" name="Yes" sourceRef="Gateway_ToBe_SafeguardCheck" targetRef="Gateway_ToBe_AssayType" />
+    <bpmn:sequenceFlow id="Flow_RouteELISA" name="ELISA" sourceRef="Gateway_ToBe_AssayType" targetRef="Task_ToBe_QC_ELISA" />
+    <bpmn:sequenceFlow id="Flow_RouteBLI" name="Octet BLI" sourceRef="Gateway_ToBe_AssayType" targetRef="Task_ToBe_QC_BLI" />
+    <bpmn:sequenceFlow id="Flow_MergeELISA" sourceRef="Task_ToBe_QC_ELISA" targetRef="Gateway_ToBe_QCMerge" />
+    <bpmn:sequenceFlow id="Flow_MergeBLI" sourceRef="Task_ToBe_QC_BLI" targetRef="Gateway_ToBe_QCMerge" />
+    <bpmn:sequenceFlow id="Flow_ToQCGate" sourceRef="Gateway_ToBe_QCMerge" targetRef="Gateway_ToBe_QCGate" />
+    <bpmn:sequenceFlow id="Flow_QCFail" name="Fail" sourceRef="Gateway_ToBe_QCGate" targetRef="Task_ToBe_PersistFailed" />
+    <bpmn:sequenceFlow id="Flow_FailToReview" sourceRef="Task_ToBe_PersistFailed" targetRef="Task_ToBe_InvestigateFail" />
+    <bpmn:sequenceFlow id="Flow_FailEnd" sourceRef="Task_ToBe_InvestigateFail" targetRef="EndEvent_ToBe_FailResolved" />
+    <bpmn:sequenceFlow id="Flow_QCPass" name="Pass" sourceRef="Gateway_ToBe_QCGate" targetRef="Task_ToBe_PersistPassed" />
+    <bpmn:sequenceFlow id="Flow_ToELNSync" sourceRef="Task_ToBe_PersistPassed" targetRef="Task_ToBe_ELNSync" />
+    <bpmn:sequenceFlow id="Flow_ToHitSelection" sourceRef="Task_ToBe_ELNSync" targetRef="Task_ToBe_HitSelection" />
+    <bpmn:sequenceFlow id="Flow_SuccessEnd" sourceRef="Task_ToBe_HitSelection" targetRef="EndEvent_ToBe_Success" />
+  </bpmn:process>
+
+  <bpmndi:BPMNDiagram id="BPMNDiagram_ToBe_v2">
+    <bpmndi:BPMNPlane id="BPMNPlane_ToBe_v2" bpmnElement="Collaboration_ToBe_v2">
+      <bpmndi:BPMNShape id="Shape_Participant_ToBe_v2" bpmnElement="Participant_ToBe_v2" isHorizontal="true">
+        <dc:Bounds x="140" y="60" width="2120" height="840" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Lane_ToBe_Instrument" bpmnElement="Lane_ToBe_Instrument" isHorizontal="true">
+        <dc:Bounds x="170" y="60" width="2090" height="170" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Lane_ToBe_Pipeline" bpmnElement="Lane_ToBe_Pipeline" isHorizontal="true">
+        <dc:Bounds x="170" y="230" width="2090" height="330" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Lane_ToBe_Platform" bpmnElement="Lane_ToBe_Platform" isHorizontal="true">
+        <dc:Bounds x="170" y="560" width="2090" height="140" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Lane_ToBe_Scientists" bpmnElement="Lane_ToBe_Scientists" isHorizontal="true">
+        <dc:Bounds x="170" y="700" width="2090" height="200" />
+      </bpmndi:BPMNShape>
+
+      <!-- Lane 1 Shapes -->
+      <bpmndi:BPMNShape id="Shape_StartEvent_ToBe" bpmnElement="StartEvent_ToBe">
+        <dc:Bounds x="212" y="122" width="36" height="36" />
+        <bpmndi:BPMNLabel><dc:Bounds x="190" y="165" width="80" height="27" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_ToBe_RetrieveUpstream" bpmnElement="Task_ToBe_RetrieveUpstream">
+        <dc:Bounds x="290" y="100" width="150" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_ToBe_RunAssay" bpmnElement="Task_ToBe_RunAssay">
+        <dc:Bounds x="480" y="100" width="130" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Event_ToBe_FileDrop" bpmnElement="Event_ToBe_FileDrop">
+        <dc:Bounds x="652" y="122" width="36" height="36" />
+        <bpmndi:BPMNLabel><dc:Bounds x="630" y="85" width="80" height="27" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_ToBe_EdgeUpload" bpmnElement="Task_ToBe_EdgeUpload">
+        <dc:Bounds x="730" y="100" width="150" height="80" />
+      </bpmndi:BPMNShape>
+
+      <!-- Lane 2 Shapes -->
+      <bpmndi:BPMNShape id="Shape_Event_ToBe_S3Trigger" bpmnElement="Event_ToBe_S3Trigger">
+        <dc:Bounds x="787" y="342" width="36" height="36" />
+        <bpmndi:BPMNLabel><dc:Bounds x="705" y="346" width="75" height="27" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_ToBe_Safeguards" bpmnElement="Task_ToBe_Safeguards">
+        <dc:Bounds x="870" y="320" width="155" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Gateway_ToBe_SafeguardCheck" bpmnElement="Gateway_ToBe_SafeguardCheck" isMarkerVisible="true">
+        <dc:Bounds x="1065" y="335" width="50" height="50" />
+        <bpmndi:BPMNLabel><dc:Bounds x="1048" y="298" width="84" height="27" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_ToBe_Quarantine" bpmnElement="Task_ToBe_Quarantine">
+        <dc:Bounds x="1020" y="450" width="140" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_EndEvent_ToBe_Quarantined" bpmnElement="EndEvent_ToBe_Quarantined">
+        <dc:Bounds x="1202" y="472" width="36" height="36" />
+        <bpmndi:BPMNLabel><dc:Bounds x="1178" y="515" width="85" height="27" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Gateway_ToBe_AssayType" bpmnElement="Gateway_ToBe_AssayType" isMarkerVisible="true">
+        <dc:Bounds x="1195" y="335" width="50" height="50" />
+        <bpmndi:BPMNLabel><dc:Bounds x="1125" y="295" width="85" height="40" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_ToBe_QC_ELISA" bpmnElement="Task_ToBe_QC_ELISA">
+        <dc:Bounds x="1290" y="250" width="155" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_ToBe_QC_BLI" bpmnElement="Task_ToBe_QC_BLI">
+        <dc:Bounds x="1290" y="390" width="155" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Gateway_ToBe_QCMerge" bpmnElement="Gateway_ToBe_QCMerge" isMarkerVisible="true">
+        <dc:Bounds x="1485" y="335" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Gateway_ToBe_QCGate" bpmnElement="Gateway_ToBe_QCGate" isMarkerVisible="true">
+        <dc:Bounds x="1575" y="335" width="50" height="50" />
+        <bpmndi:BPMNLabel><dc:Bounds x="1558" y="298" width="84" height="27" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_ToBe_PersistFailed" bpmnElement="Task_ToBe_PersistFailed">
+        <dc:Bounds x="1525" y="450" width="150" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_ToBe_PersistPassed" bpmnElement="Task_ToBe_PersistPassed">
+        <dc:Bounds x="1710" y="320" width="155" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_ToBe_ELNSync" bpmnElement="Task_ToBe_ELNSync">
+        <dc:Bounds x="1910" y="320" width="155" height="80" />
+      </bpmndi:BPMNShape>
+
+      <!-- Lane 3 Shapes -->
+      <bpmndi:BPMNShape id="Shape_DataStore_ToBe_Hub" bpmnElement="DataStore_ToBe_Hub">
+        <dc:Bounds x="1762" y="590" width="50" height="50" />
+        <bpmndi:BPMNLabel><dc:Bounds x="1720" y="645" width="135" height="40" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_DataStore_ToBe_ELN" bpmnElement="DataStore_ToBe_ELN">
+        <dc:Bounds x="1962" y="590" width="50" height="50" />
+        <bpmndi:BPMNLabel><dc:Bounds x="1920" y="645" width="135" height="40" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Lane 4 Shapes -->
+      <bpmndi:BPMNShape id="Shape_Task_ToBe_InvestigateFail" bpmnElement="Task_ToBe_InvestigateFail">
+        <dc:Bounds x="1525" y="760" width="150" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_EndEvent_ToBe_FailResolved" bpmnElement="EndEvent_ToBe_FailResolved">
+        <dc:Bounds x="1722" y="782" width="36" height="36" />
+        <bpmndi:BPMNLabel><dc:Bounds x="1695" y="825" width="90" height="40" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_ToBe_HitSelection" bpmnElement="Task_ToBe_HitSelection">
+        <dc:Bounds x="1910" y="760" width="165" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_EndEvent_ToBe_Success" bpmnElement="EndEvent_ToBe_Success">
+        <dc:Bounds x="2142" y="782" width="36" height="36" />
+        <bpmndi:BPMNLabel><dc:Bounds x="2112" y="825" width="96" height="53" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Edges -->
+      <bpmndi:BPMNEdge id="Edge_Flow_1" bpmnElement="Flow_1">
+        <di:waypoint x="248" y="140" /><di:waypoint x="290" y="140" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_2" bpmnElement="Flow_2">
+        <di:waypoint x="440" y="140" /><di:waypoint x="480" y="140" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_3" bpmnElement="Flow_3">
+        <di:waypoint x="610" y="140" /><di:waypoint x="652" y="140" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_4" bpmnElement="Flow_4">
+        <di:waypoint x="688" y="140" /><di:waypoint x="730" y="140" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_5" bpmnElement="Flow_5">
+        <di:waypoint x="805" y="180" /><di:waypoint x="805" y="342" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_6" bpmnElement="Flow_6">
+        <di:waypoint x="823" y="360" /><di:waypoint x="870" y="360" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_7" bpmnElement="Flow_7">
+        <di:waypoint x="1025" y="360" /><di:waypoint x="1065" y="360" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_SafeguardFail" bpmnElement="Flow_SafeguardFail">
+        <di:waypoint x="1090" y="385" /><di:waypoint x="1090" y="450" />
+        <bpmndi:BPMNLabel><dc:Bounds x="965" y="410" width="120" height="14" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_QuarantineEnd" bpmnElement="Flow_QuarantineEnd">
+        <di:waypoint x="1160" y="490" /><di:waypoint x="1202" y="490" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_SafeguardPass" bpmnElement="Flow_SafeguardPass">
+        <di:waypoint x="1115" y="360" /><di:waypoint x="1195" y="360" />
+        <bpmndi:BPMNLabel><dc:Bounds x="1145" y="342" width="19" height="14" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_RouteELISA" bpmnElement="Flow_RouteELISA">
+        <di:waypoint x="1220" y="335" /><di:waypoint x="1220" y="290" /><di:waypoint x="1290" y="290" />
+        <bpmndi:BPMNLabel><dc:Bounds x="1235" y="272" width="32" height="14" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_RouteBLI" bpmnElement="Flow_RouteBLI">
+        <di:waypoint x="1220" y="385" /><di:waypoint x="1220" y="430" /><di:waypoint x="1290" y="430" />
+        <bpmndi:BPMNLabel><dc:Bounds x="1230" y="412" width="46" height="14" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_MergeELISA" bpmnElement="Flow_MergeELISA">
+        <di:waypoint x="1445" y="290" /><di:waypoint x="1510" y="290" /><di:waypoint x="1510" y="335" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_MergeBLI" bpmnElement="Flow_MergeBLI">
+        <di:waypoint x="1445" y="430" /><di:waypoint x="1510" y="430" /><di:waypoint x="1510" y="385" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_ToQCGate" bpmnElement="Flow_ToQCGate">
+        <di:waypoint x="1535" y="360" /><di:waypoint x="1575" y="360" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_QCFail" bpmnElement="Flow_QCFail">
+        <di:waypoint x="1600" y="385" /><di:waypoint x="1600" y="450" />
+        <bpmndi:BPMNLabel><dc:Bounds x="1608" y="410" width="19" height="14" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_FailToReview" bpmnElement="Flow_FailToReview">
+        <di:waypoint x="1600" y="530" /><di:waypoint x="1600" y="760" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_FailEnd" bpmnElement="Flow_FailEnd">
+        <di:waypoint x="1675" y="800" /><di:waypoint x="1722" y="800" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_QCPass" bpmnElement="Flow_QCPass">
+        <di:waypoint x="1625" y="360" /><di:waypoint x="1710" y="360" />
+        <bpmndi:BPMNLabel><dc:Bounds x="1655" y="342" width="25" height="14" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_ToELNSync" bpmnElement="Flow_ToELNSync">
+        <di:waypoint x="1865" y="360" /><di:waypoint x="1910" y="360" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_ToHitSelection" bpmnElement="Flow_ToHitSelection">
+        <di:waypoint x="1987" y="400" /><di:waypoint x="1987" y="760" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_SuccessEnd" bpmnElement="Flow_SuccessEnd">
+        <di:waypoint x="2075" y="800" /><di:waypoint x="2142" y="800" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>
